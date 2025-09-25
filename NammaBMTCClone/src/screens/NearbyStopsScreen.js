@@ -14,11 +14,13 @@ import * as Location from 'expo-location';
 import { Colors } from '../constants/Colors';
 import { Layout } from '../constants/Layout';
 import ApiService from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 export default function NearbyStopsScreen() {
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busStops, setBusStops] = useState([]);
+  const { t } = useTranslation();
 
   const fetchNearbyStops = async (userLocation) => {
     try {
@@ -34,8 +36,8 @@ export default function NearbyStopsScreen() {
           // No stops found in the area
           setBusStops([]);
           Alert.alert(
-            'No Stops Found', 
-            'No bus stops found in your area. Our sample data covers central Bangalore locations like Majestic, Koramangala, and Electronic City.',
+            t('nearby.noStopsTitle'), 
+            t('nearby.noStopsMsg'),
             [{ text: 'OK' }]
           );
         } else {
@@ -43,7 +45,7 @@ export default function NearbyStopsScreen() {
           const transformedStops = response.data.map(stop => ({
             id: stop._id,
             name: stop.name,
-            distance: `${stop.distanceInKm?.toFixed(1) || '0.0'} km`,
+            distance: `${stop.distanceInKm?.toFixed(1) || '0.0'} ${t('nearby.km')}`,
             routes: stop.routeDetails?.map(route => route.routeNumber) || [],
             facilities: stop.facilities || [],
             coordinates: {
@@ -58,11 +60,11 @@ export default function NearbyStopsScreen() {
           setBusStops(transformedStops);
         }
       } else {
-        Alert.alert('Error', 'Failed to fetch nearby bus stops');
+        Alert.alert(t('common.errorTitle'), t('nearby.fetchFail'));
       }
     } catch (error) {
       console.error('Error fetching nearby stops:', error);
-      Alert.alert('Error', 'Unable to fetch nearby bus stops. Please try again.');
+      Alert.alert(t('common.errorTitle'), t('nearby.fetchError'));
     } finally {
       setLoading(false);
     }
@@ -77,8 +79,8 @@ export default function NearbyStopsScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
-          'Permission Denied',
-          'Location permission is required to find nearby bus stops.',
+          t('common.permissionDenied'),
+          t('nearby.permissionMessage'),
           [{ text: 'OK' }]
         );
         setLoading(false);
@@ -92,7 +94,7 @@ export default function NearbyStopsScreen() {
       await fetchNearbyStops(currentLocation);
     } catch (error) {
       console.error('Error getting location:', error);
-      Alert.alert('Error', 'Unable to get your location. Please try again.');
+      Alert.alert(t('common.errorTitle'), t('nearby.getLocationError'));
       setLoading(false);
     }
   };
@@ -126,7 +128,7 @@ export default function NearbyStopsScreen() {
       </View>
 
       <View style={styles.routesContainer}>
-        <Text style={styles.routesLabel}>Routes:</Text>
+        <Text style={styles.routesLabel}>{t('nearby.routes')}:</Text>
         <View style={styles.routesList}>
           {item.routes.map((route, index) => (
             <View key={index} style={styles.routeChip}>
@@ -138,7 +140,7 @@ export default function NearbyStopsScreen() {
 
       {item.facilities.length > 0 && (
         <View style={styles.facilitiesContainer}>
-          <Text style={styles.facilitiesLabel}>Facilities:</Text>
+          <Text style={styles.facilitiesLabel}>{t('nearby.facilities')}:</Text>
           <View style={styles.facilitiesList}>
             {item.facilities.map((facility, index) => (
               <View key={index} style={styles.facilityItem}>
@@ -163,7 +165,7 @@ export default function NearbyStopsScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Finding nearby bus stops...</Text>
+          <Text style={styles.loadingText}>{t('nearby.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -175,7 +177,7 @@ export default function NearbyStopsScreen() {
         <View style={styles.locationInfo}>
           <Ionicons name="location" size={Layout.iconSize.md} color={Colors.primary} />
           <Text style={styles.locationText}>
-            {location ? 'Current Location' : 'Location not available'}
+            {location ? t('nearby.currentLocation') : t('nearby.locationNotAvailable')}
           </Text>
         </View>
         <TouchableOpacity style={styles.refreshButton} onPress={() => {
@@ -198,9 +200,9 @@ export default function NearbyStopsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="bus" size={60} color={Colors.textSecondary} />
-            <Text style={styles.emptyText}>No bus stops found nearby</Text>
+            <Text style={styles.emptyText}>{t('nearby.emptyTitle')}</Text>
             <Text style={styles.emptySubtext}>
-              Our sample data covers central Bangalore areas. Try locations like Majestic, Koramangala, or Electronic City.
+              {t('nearby.emptySubtext')}
             </Text>
           </View>
         }

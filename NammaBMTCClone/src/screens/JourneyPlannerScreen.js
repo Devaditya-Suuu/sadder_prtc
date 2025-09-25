@@ -13,16 +13,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { Layout } from '../constants/Layout';
 import ApiService from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 export default function JourneyPlannerScreen() {
   const [fromLocation, setFromLocation] = useState('');
   const [toLocation, setToLocation] = useState('');
   const [routes, setRoutes] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const { t } = useTranslation();
 
   const searchRoutes = async () => {
     if (!fromLocation.trim() || !toLocation.trim()) {
-      Alert.alert('Error', 'Please enter both source and destination locations.');
+      Alert.alert(t('common.errorTitle'), t('journey.enterBoth'));
       return;
     }
 
@@ -33,26 +35,37 @@ export default function JourneyPlannerScreen() {
       
       if (response.success && response.data.length > 0) {
         // Transform API data to match component expectations
-        const transformedRoutes = response.data.map(journey => ({
-          id: journey.route._id,
-          busNumber: journey.route.routeNumber,
-          duration: `${journey.estimatedTime} mins`,
-          distance: `${journey.distance} km`,
-          fare: `₹${journey.fare}`,
-          stops: journey.stops,
-          route: [], // Route details would need separate API call
-          type: journey.route.busType === 'vajra' ? 'AC Volvo' : 
-                journey.route.busType === 'atal_sarige' ? 'Semi-luxury' : 'Direct',
-          frequency: journey.route.frequency?.peakHours || '15-20 mins',
-          fromStop: journey.fromStop,
-          toStop: journey.toStop,
-          routeName: journey.route.routeName
-        }));
-        
-        setRoutes(transformedRoutes);
+        const transformedRoutes = response.data.map((journey, idx) => {
+          const type = journey.route.busType === 'vajra' ? t('journey.type.ac') : 
+                journey.route.busType === 'atal_sarige' ? t('journey.type.semi') : t('journey.type.direct');
+          const freq = journey.route.frequency?.peakHours || t('journey.defaultFreq');
+          const compositeKey = `${journey.route._id}-${journey.fromStop}-${journey.toStop}-${type}`;
+          return {
+            key: compositeKey, // unique key for React list rendering
+            id: journey.route._id,
+            busNumber: journey.route.routeNumber,
+            duration: `${journey.estimatedTime} ${t('journey.mins')}`,
+            distance: `${journey.distance} ${t('journey.km')}`,
+            fare: `₹${journey.fare}`,
+            stops: journey.stops,
+            route: [], // placeholder
+            type,
+            frequency: freq,
+            fromStop: journey.fromStop,
+            toStop: journey.toStop,
+            routeName: journey.route.routeName
+          };
+        });
+        // Deduplicate by composite key (in case backend sends duplicates)
+        const seen = new Set();
+        const deduped = [];
+        for (const r of transformedRoutes) {
+          if (!seen.has(r.key)) { seen.add(r.key); deduped.push(r); }
+        }
+        setRoutes(deduped);
       } else {
         setRoutes([]);
-        Alert.alert('No Routes Found', 'No direct routes found between the selected locations. Please try different locations.');
+        Alert.alert(t('journey.noRoutesTitle'), t('journey.noRoutesMsg'));
       }
     } catch (error) {
       console.error('Error planning journey:', error);
@@ -60,18 +73,18 @@ export default function JourneyPlannerScreen() {
       // Show more specific error messages
       if (error.message.includes('Unable to connect to server')) {
         Alert.alert(
-          'Connection Error', 
-          'Unable to connect to the server. Please check your internet connection and try again.',
+          t('journey.connErrorTitle'), 
+          t('journey.connErrorMsg'),
           [{ text: 'OK' }]
         );
       } else if (error.message.includes('Request timed out')) {
         Alert.alert(
-          'Timeout Error', 
-          'The request took too long to complete. Please try again.',
+          t('journey.timeoutTitle'), 
+          t('journey.timeoutMsg'),
           [{ text: 'OK' }]
         );
       } else {
-        Alert.alert('Error', 'Unable to plan journey. Please try again.');
+        Alert.alert(t('common.errorTitle'), t('journey.genericError'));
       }
       
       setRoutes([]);
@@ -88,7 +101,7 @@ export default function JourneyPlannerScreen() {
   };
 
   const renderRoute = (route) => (
-    <View key={route.id} style={styles.routeCard}>
+    <View key={route.key} style={styles.routeCard}>
       <View style={styles.routeHeader}>
         <View style={styles.busInfo}>
           <View style={styles.busNumberContainer}>
@@ -96,7 +109,7 @@ export default function JourneyPlannerScreen() {
           </View>
           <View style={styles.routeDetails}>
             <Text style={styles.routeType}>{route.type}</Text>
-            <Text style={styles.frequency}>Every {route.frequency}</Text>
+            <Text style={styles.frequency}>{t('journey.every')} {route.frequency}</Text>
           </View>
         </View>
         <View style={styles.routeStats}>
@@ -116,12 +129,12 @@ export default function JourneyPlannerScreen() {
         </View>
         <View style={styles.infoItem}>
           <Ionicons name="bus" size={16} color={Colors.textSecondary} />
-          <Text style={styles.infoText}>{route.stops} stops</Text>
+          <Text style={styles.infoText}>{route.stops} {t('journey.stops')}</Text>
         </View>
       </View>
 
       <TouchableOpacity style={styles.viewDetailsButton}>
-        <Text style={styles.viewDetailsText}>View Route Details</Text>
+        <Text style={styles.viewDetailsText}>{t('journey.viewRouteDetails')}</Text>
         <Ionicons name="chevron-down" size={16} color={Colors.primary} />
       </TouchableOpacity>
     </View>
@@ -137,7 +150,7 @@ export default function JourneyPlannerScreen() {
               <Ionicons name="radio-button-on" size={20} color={Colors.accent} />
               <TextInput
                 style={styles.textInput}
-                placeholder="From (Source)"
+                placeholder={t('journey.fromPlaceholder')}
                 value={fromLocation}
                 onChangeText={setFromLocation}
                 placeholderTextColor={Colors.textSecondary}
@@ -154,7 +167,7 @@ export default function JourneyPlannerScreen() {
               <Ionicons name="location" size={20} color={Colors.error} />
               <TextInput
                 style={styles.textInput}
-                placeholder="To (Destination)"
+                placeholder={t('journey.toPlaceholder')}
                 value={toLocation}
                 onChangeText={setToLocation}
                 placeholderTextColor={Colors.textSecondary}
@@ -168,14 +181,14 @@ export default function JourneyPlannerScreen() {
             disabled={isSearching}
           >
             <Text style={styles.searchButtonText}>
-              {isSearching ? 'Searching...' : 'Search Routes'}
+              {isSearching ? t('journey.searching') : t('journey.searchRoutes')}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* Quick Destinations */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Popular Destinations</Text>
+          <Text style={styles.sectionTitle}>{t('journey.popularDestinations')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.quickDestinations}>
               {['Majestic', 'Koramangala', 'BTM Layout', 'Electronic City', 'Whitefield', 'Airport'].map((dest, index) => (
@@ -194,27 +207,27 @@ export default function JourneyPlannerScreen() {
         {/* Routes Results */}
         {routes.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Available Routes</Text>
-            <Text style={styles.resultsCount}>{routes.length} routes found</Text>
+            <Text style={styles.sectionTitle}>{t('journey.availableRoutes')}</Text>
+            <Text style={styles.resultsCount}>{routes.length} {t('journey.routesFound')}</Text>
             {routes.map(renderRoute)}
           </View>
         )}
 
         {/* Tips */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Travel Tips</Text>
+          <Text style={styles.sectionTitle}>{t('journey.travelTips')}</Text>
           <View style={styles.tipsContainer}>
             <View style={styles.tipItem}>
               <Ionicons name="time" size={20} color={Colors.info} />
-              <Text style={styles.tipText}>Peak hours: 8-10 AM, 6-8 PM</Text>
+              <Text style={styles.tipText}>{t('journey.tip.peakHours')}</Text>
             </View>
             <View style={styles.tipItem}>
               <Ionicons name="card" size={20} color={Colors.accent} />
-              <Text style={styles.tipText}>Use BMTC card for cashless travel</Text>
+              <Text style={styles.tipText}>{t('journey.tip.card')}</Text>
             </View>
             <View style={styles.tipItem}>
               <Ionicons name="shield-checkmark" size={20} color={Colors.warning} />
-              <Text style={styles.tipText}>Keep your belongings safe</Text>
+              <Text style={styles.tipText}>{t('journey.tip.safeBelongings')}</Text>
             </View>
           </View>
         </View>

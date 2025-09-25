@@ -1,4 +1,4 @@
-const BASE_URL = 'http://10.77.179.139:3001/api';
+const BASE_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://10.84.2.139:3001') + '/api';
 
 class ApiService {
   constructor() {
@@ -49,19 +49,21 @@ class ApiService {
     }
   }
 
+  setToken(token){ this.token = token; }
+
+  // Auth
+  async register({name,email,phone,password}){ return this.request('/auth/register',{ method:'POST', body: JSON.stringify({ name,email,phone,password }) }); }
+  async login({email,phone,password}){ return this.request('/auth/login',{ method:'POST', body: JSON.stringify({ email,phone,password }) }); }
+  async me(){ return this.request('/auth/me',{ headers:{ 'Content-Type':'application/json', ...(this.token?{Authorization:`Bearer ${this.token}`}:{}) } }); }
+
   // Bus-related API calls
-  async getAllBuses() {
-    return this.request('/buses');
+  async getAllBuses(city){
+    const suffix = city?`?city=${city}`:''; return this.request(`/buses${suffix}`); }
+  async getBusesByRoute(routeId, city){
+    const suffix = city?`?city=${city}`:''; return this.request(`/buses/route/${routeId}${suffix}`); }
+  async getNearbyBuses(latitude, longitude, radius = 5000, city){
+    return this.request(`/buses/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}${city?`&city=${city}`:''}`);
   }
-
-  async getBusesByRoute(routeId) {
-    return this.request(`/buses/route/${routeId}`);
-  }
-
-  async getNearbyBuses(latitude, longitude, radius = 5000) {
-    return this.request(`/buses/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}`);
-  }
-
   async getBus(busId) {
     return this.request(`/buses/${busId}`);
   }
@@ -74,70 +76,50 @@ class ApiService {
   }
 
   // Bus stop-related API calls
-  async getAllBusStops(page = 1, limit = 50, search = '') {
-    let endpoint = `/bus-stops?page=${page}&limit=${limit}`;
-    if (search) {
-      endpoint += `&search=${encodeURIComponent(search)}`;
-    }
-    return this.request(endpoint);
+  async getAllBusStops(page=1,limit=50,search='',city){
+    let endpoint=`/bus-stops?page=${page}&limit=${limit}`; if(search) endpoint+=`&search=${encodeURIComponent(search)}`; if(city) endpoint+=`&city=${city}`; return this.request(endpoint);
   }
-
-  async getNearbyBusStops(latitude, longitude, radius = 2000) {
-    return this.request(`/bus-stops/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}`);
+  async getNearbyBusStops(latitude,longitude,radius=2000,city){
+    return this.request(`/bus-stops/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}${city?`&city=${city}`:''}`);
   }
-
   async getBusStop(stopId) {
     return this.request(`/bus-stops/${stopId}`);
   }
 
-  async getBusStopsByRoute(routeId) {
-    return this.request(`/bus-stops/route/${routeId}`);
+  async getBusStopsByRoute(routeId,city){
+    return this.request(`/bus-stops/route/${routeId}${city?`?city=${city}`:''}`);
   }
-
-  async searchBusStops(query, latitude = null, longitude = null, radius = 5000) {
-    let endpoint = `/bus-stops/search?q=${encodeURIComponent(query)}`;
-    if (latitude && longitude) {
-      endpoint += `&latitude=${latitude}&longitude=${longitude}&radius=${radius}`;
-    }
-    return this.request(endpoint);
+  async searchBusStops(query,latitude=null,longitude=null,radius=5000,city){
+    let endpoint=`/bus-stops/search?q=${encodeURIComponent(query)}`; if(latitude&&longitude){endpoint+=`&latitude=${latitude}&longitude=${longitude}&radius=${radius}`;} if(city) endpoint+=`&city=${city}`; return this.request(endpoint);
   }
 
   // Route-related API calls
-  async getAllRoutes(page = 1, limit = 20, search = '', busType = '') {
-    let endpoint = `/routes?page=${page}&limit=${limit}`;
-    if (search) {
-      endpoint += `&search=${encodeURIComponent(search)}`;
-    }
-    if (busType) {
-      endpoint += `&busType=${busType}`;
-    }
-    return this.request(endpoint);
+  async getAllRoutes(page=1,limit=20,search='',busType='',city){
+    let endpoint=`/routes?page=${page}&limit=${limit}`; if(search) endpoint+=`&search=${encodeURIComponent(search)}`; if(busType) endpoint+=`&busType=${busType}`; if(city) endpoint+=`&city=${city}`; return this.request(endpoint);
   }
-
   async getRoute(routeId) {
     return this.request(`/routes/${routeId}`);
   }
 
-  async planJourney(from, to, busType = '') {
-    let endpoint = `/routes/plan-journey?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-    if (busType) {
-      endpoint += `&busType=${busType}`;
-    }
-    return this.request(endpoint);
+  async planJourney(from,to,busType='',city){
+    let endpoint=`/routes/plan-journey?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`; if(busType) endpoint+=`&busType=${busType}`; if(city) endpoint+=`&city=${city}`; return this.request(endpoint);
   }
-
-  async calculateFare(fromStop, toStop, routeId = '', busType = 'ordinary') {
-    let endpoint = `/routes/calculate-fare?fromStop=${encodeURIComponent(fromStop)}&toStop=${encodeURIComponent(toStop)}&busType=${busType}`;
-    if (routeId) {
-      endpoint += `&routeId=${routeId}`;
-    }
-    return this.request(endpoint);
+  async calculateFare(fromStop,toStop,routeId='',busType='ordinary',city){
+    let endpoint=`/routes/calculate-fare?fromStop=${encodeURIComponent(fromStop)}&toStop=${encodeURIComponent(toStop)}&busType=${busType}`; if(routeId) endpoint+=`&routeId=${routeId}`; if(city) endpoint+=`&city=${city}`; return this.request(endpoint);
   }
 
   // Health check
   async healthCheck() {
     return this.request('/health');
   }
+
+  // Corridor-related API calls
+  async getActiveCorridorTrips(corridorKey='bengaluru-tumkur', direction){
+    let endpoint = `/driver/corridor/${corridorKey}/active`;
+    if(direction) endpoint += `?direction=${direction}`;
+    return this.request(endpoint);
+  }
+  async getCorridor(key='bengaluru-tumkur') { return this.request(`/corridor/${key}`); }
 }
 
 export default new ApiService();

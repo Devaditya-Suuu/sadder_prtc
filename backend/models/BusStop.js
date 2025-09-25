@@ -57,6 +57,12 @@ const busStopSchema = new mongoose.Schema({
   depot: {
     type: String,
     trim: true
+  },
+  city: {
+    type: String,
+    enum: ['bengaluru', 'tumkur'],
+    default: 'bengaluru',
+    index: true
   }
 }, {
   timestamps: true
@@ -73,5 +79,8 @@ busStopSchema.index({ 'routes.routeId': 1 });
 
 // Text index for stop name search
 busStopSchema.index({ name: 'text', landmark: 'text' });
+
+// Composite index for city + routes
+busStopSchema.index({ city: 1, 'routes.routeId': 1 });
 
 module.exports = mongoose.model('BusStop', busStopSchema);

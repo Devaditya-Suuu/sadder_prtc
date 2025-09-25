@@ -4,11 +4,15 @@ const Route = require('../models/Route');
 // Get all bus stops
 const getAllBusStops = async (req, res) => {
   try {
-    const { page = 1, limit = 50, search } = req.query;
+    const { page = 1, limit = 50, search, city } = req.query;
     const query = { isActive: true };
     
     if (search) {
       query.$text = { $search: search };
+    }
+    
+    if (city) {
+      query.city = city.toLowerCase();
     }
     
     const busStops = await BusStop.find(query)
@@ -40,7 +44,7 @@ const getAllBusStops = async (req, res) => {
 // Get nearby bus stops
 const getNearbyBusStops = async (req, res) => {
   try {
-    const { latitude, longitude, radius = 2000 } = req.query;
+    const { latitude, longitude, radius = 2000, city } = req.query;
     
     if (!latitude || !longitude) {
       return res.status(400).json({
@@ -58,7 +62,7 @@ const getNearbyBusStops = async (req, res) => {
           },
           distanceField: 'distance',
           maxDistance: parseInt(radius),
-          query: { isActive: true },
+          query: { isActive: true, ...(city ? { city: city.toLowerCase() } : {}) },
           spherical: true
         }
       },
@@ -121,16 +125,15 @@ const getNearbyBusStops = async (req, res) => {
 const getBusStop = async (req, res) => {
   try {
     const { id } = req.params;
+    const { city } = req.query;
     
     let busStop;
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
-      // MongoDB ObjectId
-      busStop = await BusStop.findById(id)
+      busStop = await BusStop.findOne({ _id: id, isActive: true, ...(city ? { city: city.toLowerCase() } : {}) })
         .populate('routes.routeId', 'routeNumber routeName origin destination')
         .select('-__v');
     } else {
-      // Stop ID
-      busStop = await BusStop.findOne({ stopId: id, isActive: true })
+      busStop = await BusStop.findOne({ stopId: id, isActive: true, ...(city ? { city: city.toLowerCase() } : {}) })
         .populate('routes.routeId', 'routeNumber routeName origin destination')
         .select('-__v');
     }
@@ -159,14 +162,15 @@ const getBusStop = async (req, res) => {
 const getBusStopsByRoute = async (req, res) => {
   try {
     const { routeId } = req.params;
+    const { city } = req.query;
     
-    const busStops = await BusStop.find({
-      'routes.routeId': routeId,
-      isActive: true
-    })
-    .populate('routes.routeId', 'routeNumber routeName')
-    .select('-__v')
-    .sort({ name: 1 });
+    const filter = { 'routes.routeId': routeId, isActive: true };
+    if (city) filter.city = city.toLowerCase();
+    
+    const busStops = await BusStop.find(filter)
+      .populate('routes.routeId', 'routeNumber routeName')
+      .select('-__v')
+      .sort({ name: 1 });
     
     res.json({
       success: true,
@@ -185,7 +189,7 @@ const getBusStopsByRoute = async (req, res) => {
 // Search bus stops
 const searchBusStops = async (req, res) => {
   try {
-    const { q, latitude, longitude, radius = 5000 } = req.query;
+    const { q, latitude, longitude, radius = 5000, city } = req.query;
     
     if (!q) {
       return res.status(400).json({
@@ -198,6 +202,10 @@ const searchBusStops = async (req, res) => {
       isActive: true,
       $text: { $search: q }
     };
+    
+    if (city) {
+      query.city = city.toLowerCase();
+    }
     
     let busStops;
     

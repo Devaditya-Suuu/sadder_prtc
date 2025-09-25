@@ -11,37 +11,39 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
 import { Layout } from '../constants/Layout';
+import { useTranslation } from 'react-i18next';
 
 export default function HomeScreen({ navigation }) {
+  const { t } = useTranslation();
   const quickActions = [
     {
       id: 1,
-      title: 'Live Bus Tracking',
-      subtitle: 'Track buses in real-time',
+      title: t('home.quick.liveTitle'),
+      subtitle: t('home.quick.liveSubtitle'),
       icon: 'bus',
       color: Colors.primary,
       onPress: () => navigation.navigate('LiveTracking'),
     },
     {
       id: 2,
-      title: 'Nearby Stops',
-      subtitle: 'Find bus stops near you',
+      title: t('home.quick.nearbyTitle'),
+      subtitle: t('home.quick.nearbySubtitle'),
       icon: 'location',
       color: Colors.info,
       onPress: () => navigation.navigate('Nearby'),
     },
     {
       id: 3,
-      title: 'Plan Journey',
-      subtitle: 'Get route suggestions',
+      title: t('home.quick.planTitle'),
+      subtitle: t('home.quick.planSubtitle'),
       icon: 'map',
       color: Colors.accent,
       onPress: () => navigation.navigate('Journey'),
     },
     {
       id: 4,
-      title: 'Fare Calculator',
-      subtitle: 'Calculate bus fare',
+      title: t('home.quick.fareTitle'),
+      subtitle: t('home.quick.fareSubtitle'),
       icon: 'calculator',
       color: Colors.warning,
       onPress: () => navigation.navigate('FareCalculator'),
@@ -75,9 +77,9 @@ export default function HomeScreen({ navigation }) {
           style={styles.welcomeBanner}
         >
           <View style={styles.bannerContent}>
-            <Text style={styles.welcomeText}>Welcome to</Text>
-            <Text style={styles.brandText}>Namma BMTC</Text>
-            <Text style={styles.tagline}>Your Smart Transit Companion</Text>
+            <Text style={styles.welcomeText}>{t('home.welcome')}</Text>
+            <Text style={styles.brandText}>{t('home.brand')}</Text>
+            <Text style={styles.tagline}>{t('home.tagline')}</Text>
           </View>
           <View style={styles.bannerIcon}>
             <Ionicons name="bus" size={60} color={Colors.textLight} />
@@ -95,13 +97,13 @@ export default function HomeScreen({ navigation }) {
             style={styles.sosGradient}
           >
             <Ionicons name="warning" size={Layout.iconSize.lg} color={Colors.textLight} />
-            <Text style={styles.sosText}>Emergency SOS</Text>
+            <Text style={styles.sosText}>{t('home.sosButton')}</Text>
           </LinearGradient>
         </TouchableOpacity>
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>{t('home.quickActionsTitle')}</Text>
           <View style={styles.quickActions}>
             {quickActions.map(renderQuickAction)}
           </View>
@@ -109,32 +111,32 @@ export default function HomeScreen({ navigation }) {
 
         {/* Recent Trips */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Trips</Text>
+          <Text style={styles.sectionTitle}>{t('home.recentTripsTitle')}</Text>
           <View style={styles.recentTripsCard}>
-            <Text style={styles.noTripsText}>No recent trips</Text>
-            <Text style={styles.noTripsSubtext}>Start planning your journey to see your trips here</Text>
+            <Text style={styles.noTripsText}>{t('home.noTrips')}</Text>
+            <Text style={styles.noTripsSubtext}>{t('home.noTripsSubtext')}</Text>
           </View>
         </View>
 
         {/* Features */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Features</Text>
+          <Text style={styles.sectionTitle}>{t('home.featuresTitle')}</Text>
           <View style={styles.featuresGrid}>
             <View style={styles.featureItem}>
               <Ionicons name="time" size={Layout.iconSize.lg} color={Colors.primary} />
-              <Text style={styles.featureText}>Real-time Updates</Text>
+              <Text style={styles.featureText}>{t('home.features.realtime')}</Text>
             </View>
             <View style={styles.featureItem}>
               <Ionicons name="shield-checkmark" size={Layout.iconSize.lg} color={Colors.accent} />
-              <Text style={styles.featureText}>Safe & Secure</Text>
+              <Text style={styles.featureText}>{t('home.features.safeSecure')}</Text>
             </View>
             <View style={styles.featureItem}>
               <Ionicons name="card" size={Layout.iconSize.lg} color={Colors.info} />
-              <Text style={styles.featureText}>Digital Payments</Text>
+              <Text style={styles.featureText}>{t('home.features.digitalPayments')}</Text>
             </View>
             <View style={styles.featureItem}>
               <Ionicons name="people" size={Layout.iconSize.lg} color={Colors.warning} />
-              <Text style={styles.featureText}>Community</Text>
+              <Text style={styles.featureText}>{t('home.features.community')}</Text>
             </View>
           </View>
         </View>

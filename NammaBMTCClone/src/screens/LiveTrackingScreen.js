@@ -14,18 +14,24 @@ import * as Location from 'expo-location';
 import { Colors } from '../constants/Colors';
 import { Layout } from '../constants/Layout';
 import ApiService from '../services/api';
+import SocketService from '../services/socketService';
+import { useTranslation } from 'react-i18next';
 
 export default function LiveTrackingScreen({ navigation }) {
+  const { t } = useTranslation();
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [buses, setBuses] = useState([]);
   const [selectedBus, setSelectedBus] = useState(null);
   const [region, setRegion] = useState({
-    latitude: 12.9716,
-    longitude: 77.5946,
+    latitude: 13.340754,
+    longitude: 77.101185,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
+  const [corridorTrips, setCorridorTrips] = useState([]);
+  const [useRealtime, setUseRealtime] = useState(false);
+  const [corridorLine, setCorridorLine] = useState([]);
 
   const fetchNearbyBuses = async (userLocation) => {
     try {
@@ -53,11 +59,11 @@ export default function LiveTrackingScreen({ navigation }) {
         
         setBuses(transformedBuses);
       } else {
-        Alert.alert('Error', 'Failed to fetch bus locations');
+        Alert.alert(t('common.errorTitle'), t('live.fetchBusesFail'));
       }
     } catch (error) {
       console.error('Error fetching buses:', error);
-      Alert.alert('Error', 'Unable to fetch bus locations. Please try again.');
+      Alert.alert(t('common.errorTitle'), t('live.fetchBusesError'));
     }
   };
 
@@ -72,19 +78,56 @@ export default function LiveTrackingScreen({ navigation }) {
 
   useEffect(() => {
     getCurrentLocation();
-    // Simulate real-time bus updates
-    const interval = setInterval(() => {
-      updateBusPositions();
-    }, 5000);
+    // Corridor polling fallback
+    const poll = async () => {
+      try {
+        const res = await ApiService.getActiveCorridorTrips();
+        const list = res.data || res.trips || [];
+        setCorridorTrips(list);
+      } catch(e){ console.log('corridor poll error', e.message); }
+    };
+    poll();
+    const pollInterval = setInterval(poll, 8000);
 
-    return () => clearInterval(interval);
+    // Attempt realtime
+    const socket = SocketService.connect();
+    SocketService.trackCorridor('bengaluru-tumkur', (evt)=>{
+      setUseRealtime(true);
+      setCorridorTrips(prev => {
+        if(evt.type==='location'){
+          const idx = prev.findIndex(t=>t.tripId===evt.tripId);
+            if(idx>-1){
+              const copy=[...prev];
+              copy[idx] = { ...copy[idx], lastLocation: evt.location, progress: evt.progress, eta: evt.eta, updatedAt: evt.updatedAt };
+              return copy;
+            } else {
+              return prev.concat({ tripId: evt.tripId, lastLocation: evt.location, progress: evt.progress, eta: evt.eta, direction: evt.direction, busNumber: evt.busNumber });
+            }
+        } else if(evt.type==='trip-start'){
+          return prev.concat({ tripId: evt.tripId });
+        } else if(evt.type==='trip-end'){
+          return prev.filter(t=>t.tripId!==evt.tripId);
+        }
+        return prev;
+      });
+    });
+
+    const loadCorridor = async () => {
+      try { const meta = await ApiService.getCorridor(); if(meta.success){
+        const coords = meta.data.simplifiedLine.coordinates.map(([lng,lat])=>({ latitude: lat, longitude: lng }));
+        setCorridorLine(coords);
+      }} catch(e){ console.log('corridor meta error', e.message); }
+    };
+    loadCorridor();
+
+    return () => { clearInterval(pollInterval); SocketService.stopTrackingCorridor('bengaluru-tumkur'); };
   }, []);
 
   const getCurrentLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required for live tracking.');
+        Alert.alert(t('common.permissionDenied'), t('live.permissionMessage'));
         setLoading(false);
         return;
       }
@@ -97,7 +140,7 @@ export default function LiveTrackingScreen({ navigation }) {
       setLoading(false);
     } catch (error) {
       console.error('Error getting location:', error);
-      Alert.alert('Error', 'Unable to get your location.');
+      Alert.alert(t('common.errorTitle'), t('live.getLocationError'));
       setLoading(false);
     }
   };
@@ -130,7 +173,7 @@ export default function LiveTrackingScreen({ navigation }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading live tracking...</Text>
+          <Text style={styles.loadingText}>{t('live.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -145,7 +188,7 @@ export default function LiveTrackingScreen({ navigation }) {
         >
           <Ionicons name="arrow-back" size={Layout.iconSize.md} color={Colors.textLight} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Live Bus Tracking</Text>
+        <Text style={styles.headerTitle}>{t('live.headerTitle')}</Text>
         <TouchableOpacity style={styles.refreshButton} onPress={updateBusPositions}>
           <Ionicons name="refresh" size={Layout.iconSize.md} color={Colors.textLight} />
         </TouchableOpacity>
@@ -166,7 +209,7 @@ export default function LiveTrackingScreen({ navigation }) {
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude,
               }}
-              title="Your Location"
+              title={t('live.yourLocation')}
               pinColor={Colors.accent}
             />
           )}
@@ -179,6 +222,11 @@ export default function LiveTrackingScreen({ navigation }) {
             lineDashPattern={[5, 5]}
           />
 
+          {/* Corridor polyline */}
+          {corridorLine.length>0 && (
+            <Polyline coordinates={corridorLine} strokeColor={Colors.primary} strokeWidth={4} />
+          )}
+
           {/* Bus markers */}
           {buses.map((bus) => (
             <Marker
@@ -190,6 +238,18 @@ export default function LiveTrackingScreen({ navigation }) {
               onPress={() => setSelectedBus(bus)}
             >
               <View style={[styles.busMarker, { backgroundColor: getBusMarkerColor(bus) }]}>
+                <Ionicons name="bus" size={20} color={Colors.textLight} />
+              </View>
+            </Marker>
+          ))}
+
+          {/* Corridor trip markers */}
+          {corridorTrips.filter(t=>t.lastLocation && t.lastLocation.coordinates).map(t => (
+            <Marker key={t.tripId}
+              coordinate={{ latitude: t.lastLocation.coordinates[1], longitude: t.lastLocation.coordinates[0] }}
+              onPress={()=> setSelectedBus({ number: t.busNumber || t('live.intercity'), eta: t.eta ? new Date(t.eta).toLocaleTimeString() : '—', speed: t.speed || '-', occupancy: 'N/A', route: t('live.routeBLR_TM'), progress: t.progress }) }
+            >
+              <View style={[styles.busMarker, { backgroundColor: Colors.secondary }]}> 
                 <Ionicons name="bus" size={20} color={Colors.textLight} />
               </View>
             </Marker>
@@ -216,12 +276,12 @@ export default function LiveTrackingScreen({ navigation }) {
             <View style={styles.busDetails}>
               <View style={styles.busDetailItem}>
                 <Ionicons name="speedometer" size={16} color={Colors.textSecondary} />
-                <Text style={styles.busDetailText}>{selectedBus.speed} km/h</Text>
+                <Text style={styles.busDetailText}>{selectedBus.speed} {t('live.kmph')}</Text>
               </View>
               
               <View style={styles.busDetailItem}>
                 <Ionicons name="time" size={16} color={Colors.textSecondary} />
-                <Text style={styles.busDetailText}>ETA: {selectedBus.eta}</Text>
+                <Text style={styles.busDetailText}>{t('live.eta')}: {selectedBus.eta}</Text>
               </View>
               
               <View style={styles.busDetailItem}>
@@ -234,14 +294,14 @@ export default function LiveTrackingScreen({ navigation }) {
                   styles.busDetailText,
                   { color: getOccupancyColor(selectedBus.occupancy) }
                 ]}>
-                  {selectedBus.occupancy} occupancy
+                  {selectedBus.occupancy} {t('live.occupancySuffix')}
                 </Text>
               </View>
             </View>
 
-            <Text style={styles.nextStopText}>
-              Next stop: {selectedBus.nextStop}
-            </Text>
+            {selectedBus.progress && (
+              <Text style={styles.nextStopText}>{t('live.progress')}: {selectedBus.progress.percent}% ({selectedBus.progress.meters} {t('live.metersShort')})</Text>
+            )}
           </View>
         )}
       </View>
@@ -250,17 +310,17 @@ export default function LiveTrackingScreen({ navigation }) {
       <View style={styles.bottomControls}>
         <TouchableOpacity style={styles.controlButton}>
           <Ionicons name="list" size={Layout.iconSize.md} color={Colors.primary} />
-          <Text style={styles.controlButtonText}>Bus List</Text>
+          <Text style={styles.controlButtonText}>{t('live.busList')}</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.controlButton}>
           <Ionicons name="filter" size={Layout.iconSize.md} color={Colors.primary} />
-          <Text style={styles.controlButtonText}>Filter</Text>
+          <Text style={styles.controlButtonText}>{t('live.filter')}</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.controlButton}>
           <Ionicons name="navigate" size={Layout.iconSize.md} color={Colors.primary} />
-          <Text style={styles.controlButtonText}>Navigate</Text>
+          <Text style={styles.controlButtonText}>{t('live.navigate')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

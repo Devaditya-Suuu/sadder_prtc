@@ -4,7 +4,7 @@ const BusStop = require('../models/BusStop');
 // Get all routes
 const getAllRoutes = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, busType } = req.query;
+    const { page = 1, limit = 20, search, busType, city } = req.query;
     let query = { isActive: true };
     
     if (search) {
@@ -13,6 +13,10 @@ const getAllRoutes = async (req, res) => {
     
     if (busType) {
       query.busType = busType;
+    }
+    
+    if (city) {
+      query.city = city.toLowerCase();
     }
     
     const routes = await Route.find(query)
@@ -85,7 +89,7 @@ const getRoute = async (req, res) => {
 // Plan journey between two points
 const planJourney = async (req, res) => {
   try {
-    const { from, to, busType } = req.query;
+    const { from, to, busType, city } = req.query;
     
     if (!from || !to) {
       return res.status(400).json({
@@ -110,13 +114,15 @@ const planJourney = async (req, res) => {
             $maxDistance: 1000 // 1km radius
           }
         },
-        isActive: true
+        isActive: true,
+        ...(city ? { city: city.toLowerCase() } : {})
       }).limit(5);
     } else {
       // Stop name provided
       fromStops = await BusStop.find({
         $text: { $search: from },
-        isActive: true
+        isActive: true,
+        ...(city ? { city: city.toLowerCase() } : {})
       }).limit(5);
     }
     
@@ -133,13 +139,15 @@ const planJourney = async (req, res) => {
             $maxDistance: 1000 // 1km radius
           }
         },
-        isActive: true
+        isActive: true,
+        ...(city ? { city: city.toLowerCase() } : {})
       }).limit(5);
     } else {
       // Stop name provided
       toStops = await BusStop.find({
         $text: { $search: to },
-        isActive: true
+        isActive: true,
+        ...(city ? { city: city.toLowerCase() } : {})
       }).limit(5);
     }
     
@@ -158,8 +166,7 @@ const planJourney = async (req, res) => {
         for (const routeId of commonRouteIds) {
           const route = await Route.findById(routeId)
             .populate('stops.stopId', 'name location stopId');
-          
-          if (!route || (busType && route.busType !== busType)) continue;
+          if (!route || (busType && route.busType !== busType) || (city && route.city !== city.toLowerCase())) continue;
           
           // Find stop sequences
           const fromStopSeq = route.stops.find(s => 
@@ -241,7 +248,7 @@ const planJourney = async (req, res) => {
 // Calculate fare between two stops
 const calculateFare = async (req, res) => {
   try {
-    const { fromStop, toStop, routeId, busType = 'ordinary' } = req.query;
+    const { fromStop, toStop, routeId, busType = 'ordinary', city } = req.query;
     
     if (!fromStop || !toStop) {
       return res.status(400).json({
@@ -260,7 +267,8 @@ const calculateFare = async (req, res) => {
           { _id: fromStop },
           { stopId: fromStop },
           { name: { $regex: fromStop, $options: 'i' } }
-        ]
+        ],
+        ...(city ? { city: city.toLowerCase() } : {})
       });
       
       const toStopDoc = await BusStop.findOne({
@@ -268,7 +276,8 @@ const calculateFare = async (req, res) => {
           { _id: toStop },
           { stopId: toStop },
           { name: { $regex: toStop, $options: 'i' } }
-        ]
+        ],
+        ...(city ? { city: city.toLowerCase() } : {})
       });
       
       if (!fromStopDoc || !toStopDoc) {
@@ -290,7 +299,7 @@ const calculateFare = async (req, res) => {
       }
     }
     
-    if (!route) {
+    if (!route || (city && route.city !== city.toLowerCase())) {
       return res.status(404).json({
         success: false,
         message: 'No direct route found between the stops'

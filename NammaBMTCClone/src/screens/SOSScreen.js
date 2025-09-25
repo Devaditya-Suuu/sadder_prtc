@@ -8,58 +8,61 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
+  ScrollView, // added
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { Colors } from '../constants/Colors';
 import { Layout } from '../constants/Layout';
+import { useTranslation } from 'react-i18next';
 
 export default function SOSScreen({ navigation }) {
   const [location, setLocation] = useState(null);
   const [isEmergencyActive, setIsEmergencyActive] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [locationLoading, setLocationLoading] = useState(true);
+  const { t } = useTranslation();
 
   const emergencyContacts = [
     {
       id: 1,
-      name: 'Police',
+      name: t('sos.contacts.police'),
       number: '100',
       icon: 'shield',
       color: Colors.info,
-      description: 'For immediate police assistance',
+      description: t('sos.contactsDesc.police'),
     },
     {
       id: 2,
-      name: 'Fire Department',
+      name: t('sos.contacts.fire'),
       number: '101',
       icon: 'flame',
       color: Colors.error,
-      description: 'Fire emergency services',
+      description: t('sos.contactsDesc.fire'),
     },
     {
       id: 3,
-      name: 'Ambulance',
+      name: t('sos.contacts.ambulance'),
       number: '108',
       icon: 'medical',
       color: Colors.accent,
-      description: 'Medical emergency services',
+      description: t('sos.contactsDesc.ambulance'),
     },
     {
       id: 4,
-      name: 'Women Helpline',
+      name: t('sos.contacts.women'),
       number: '1091',
       icon: 'woman',
       color: Colors.warning,
-      description: '24/7 women safety helpline',
+      description: t('sos.contactsDesc.women'),
     },
     {
       id: 5,
-      name: 'BMTC Control Room',
+      name: t('sos.contacts.bmtc'),
       number: '080-22961111',
       icon: 'bus',
       color: Colors.primary,
-      description: 'BMTC emergency assistance',
+      description: t('sos.contactsDesc.bmtc'),
     },
   ];
 
@@ -84,8 +87,8 @@ export default function SOSScreen({ navigation }) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
-          'Location Permission Required',
-          'Location access is needed for emergency services to locate you.',
+          t('sos.locationPermissionTitle'),
+          t('sos.locationPermissionMsg'),
           [{ text: 'OK' }]
         );
         setLocationLoading(false);
@@ -105,15 +108,15 @@ export default function SOSScreen({ navigation }) {
 
   const startEmergencyCountdown = () => {
     Alert.alert(
-      'Emergency Alert',
-      'This will send your location to emergency services and trusted contacts. Are you sure?',
+      t('sos.emergencyAlertTitle'),
+      t('sos.emergencyAlertMsg'),
       [
         {
-          text: 'Cancel',
+          text: t('sos.cancel'),
           style: 'cancel',
         },
         {
-          text: 'Start Emergency',
+          text: t('sos.startEmergency'),
           style: 'destructive',
           onPress: () => {
             setCountdown(10);
@@ -127,25 +130,19 @@ export default function SOSScreen({ navigation }) {
   const cancelEmergency = () => {
     setCountdown(null);
     setIsEmergencyActive(false);
-    Alert.alert('Emergency Cancelled', 'Emergency alert has been cancelled.');
+    Alert.alert(t('sos.cancelledTitle'), t('sos.cancelledMsg'));
   };
 
   const triggerEmergency = () => {
     setCountdown(null);
     setIsEmergencyActive(false);
     
-    // In a real app, this would:
-    // 1. Send location to emergency services
-    // 2. Notify trusted contacts
-    // 3. Send alert to BMTC control room
-    // 4. Start recording audio/video if permissions allow
-    
     Alert.alert(
-      'Emergency Alert Sent!',
-      'Your location has been shared with emergency services and your trusted contacts.',
+      t('sos.sentTitle'),
+      t('sos.sentMsg'),
       [
         {
-          text: 'Call Police (100)',
+          text: t('sos.callPolice'),
           onPress: () => makeCall('100'),
         },
         {
@@ -161,7 +158,7 @@ export default function SOSScreen({ navigation }) {
     Linking.canOpenURL(phoneNumber)
       .then((supported) => {
         if (!supported) {
-          Alert.alert('Error', 'Phone calls are not supported on this device');
+          Alert.alert(t('common.errorTitle'), t('sos.callNotSupported'));
         } else {
           return Linking.openURL(phoneNumber);
         }
@@ -171,16 +168,15 @@ export default function SOSScreen({ navigation }) {
 
   const shareLocation = () => {
     if (!location) {
-      Alert.alert('Location Not Available', 'Please wait while we get your location.');
+      Alert.alert(t('sos.locationNA'), t('sos.waitLocation'));
       return;
     }
 
     const locationText = `Emergency! My location: https://maps.google.com/?q=${location.coords.latitude},${location.coords.longitude}`;
     
-    // In a real app, this would use sharing APIs
     Alert.alert(
-      'Location Shared',
-      'Your location has been prepared for sharing:\n\n' + locationText,
+      t('sos.locationSharedTitle'),
+      t('sos.locationSharedMsg') + '\n\n' + locationText,
       [{ text: 'OK' }]
     );
   };
@@ -213,11 +209,16 @@ export default function SOSScreen({ navigation }) {
         >
           <Ionicons name="arrow-back" size={Layout.iconSize.md} color={Colors.textLight} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Emergency SOS</Text>
+        <Text style={styles.headerTitle}>{t('profile.emergency.title')}</Text>
         <View style={styles.placeholder} />
       </View>
 
-      <View style={styles.content}>
+      {/* Replaced non-scrollable content wrapper with ScrollView */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Emergency Button */}
         <View style={styles.emergencySection}>
           {isEmergencyActive && countdown > 0 ? (
@@ -225,9 +226,9 @@ export default function SOSScreen({ navigation }) {
               <View style={styles.countdownCircle}>
                 <Text style={styles.countdownText}>{countdown}</Text>
               </View>
-              <Text style={styles.countdownLabel}>Emergency in {countdown} seconds</Text>
+              <Text style={styles.countdownLabel}>{t('sos.emergencyIn')} {countdown} {t('sos.seconds')}</Text>
               <TouchableOpacity style={styles.cancelButton} onPress={cancelEmergency}>
-                <Text style={styles.cancelButtonText}>Cancel Emergency</Text>
+                <Text style={styles.cancelButtonText}>{t('sos.cancelEmergency')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -238,11 +239,11 @@ export default function SOSScreen({ navigation }) {
                 activeOpacity={0.8}
               >
                 <Ionicons name="warning" size={60} color={Colors.textLight} />
-                <Text style={styles.emergencyButtonText}>EMERGENCY</Text>
-                <Text style={styles.emergencyButtonSubtext}>Hold to activate</Text>
+                <Text style={styles.emergencyButtonText}>{t('sos.emergency')}</Text>
+                <Text style={styles.emergencyButtonSubtext}>{t('sos.tapToActivate')}</Text>
               </TouchableOpacity>
               <Text style={styles.emergencyInfo}>
-                Press to send your location to emergency services and trusted contacts
+                {t('sos.pressToSend')}
               </Text>
             </View>
           )}
@@ -252,13 +253,13 @@ export default function SOSScreen({ navigation }) {
         <View style={styles.locationSection}>
           <View style={styles.locationHeader}>
             <Ionicons name="location" size={Layout.iconSize.md} color={Colors.primary} />
-            <Text style={styles.locationTitle}>Your Location</Text>
+            <Text style={styles.locationTitle}>{t('sos.yourLocation')}</Text>
           </View>
           
           {locationLoading ? (
             <View style={styles.locationLoading}>
               <ActivityIndicator size="small" color={Colors.primary} />
-              <Text style={styles.locationLoadingText}>Getting your location...</Text>
+              <Text style={styles.locationLoadingText}>{t('sos.gettingLocation')}</Text>
             </View>
           ) : location ? (
             <View style={styles.locationInfo}>
@@ -269,23 +270,23 @@ export default function SOSScreen({ navigation }) {
                 Lng: {location.coords.longitude.toFixed(6)}
               </Text>
               <Text style={styles.locationAccuracy}>
-                Accuracy: ±{Math.round(location.coords.accuracy)}m
+                {t('sos.accuracy')} ±{Math.round(location.coords.accuracy)}m
               </Text>
               <TouchableOpacity style={styles.shareLocationButton} onPress={shareLocation}>
                 <Ionicons name="share" size={16} color={Colors.primary} />
-                <Text style={styles.shareLocationText}>Share Location</Text>
+                <Text style={styles.shareLocationText}>{t('sos.shareLocation')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <Text style={styles.locationError}>
-              Location not available. Please check your settings.
+              {t('sos.locationNotAvailable')}
             </Text>
           )}
         </View>
 
         {/* Emergency Contacts */}
         <View style={styles.contactsSection}>
-          <Text style={styles.sectionTitle}>Emergency Contacts</Text>
+          <Text style={styles.sectionTitle}>{t('sos.emergencyContacts')}</Text>
           <View style={styles.contactsList}>
             {emergencyContacts.map(renderEmergencyContact)}
           </View>
@@ -293,27 +294,27 @@ export default function SOSScreen({ navigation }) {
 
         {/* Safety Tips */}
         <View style={styles.tipsSection}>
-          <Text style={styles.sectionTitle}>Safety Tips</Text>
+          <Text style={styles.sectionTitle}>{t('sos.safetyTips')}</Text>
           <View style={styles.tipsList}>
             <View style={styles.tipItem}>
               <Ionicons name="checkmark-circle" size={20} color={Colors.accent} />
-              <Text style={styles.tipText}>Stay calm and alert in emergency situations</Text>
+              <Text style={styles.tipText}>{t('sos.tips.stayCalm')}</Text>
             </View>
             <View style={styles.tipItem}>
               <Ionicons name="checkmark-circle" size={20} color={Colors.accent} />
-              <Text style={styles.tipText}>Share your travel plans with trusted contacts</Text>
+              <Text style={styles.tipText}>{t('sos.tips.sharePlans')}</Text>
             </View>
             <View style={styles.tipItem}>
               <Ionicons name="checkmark-circle" size={20} color={Colors.accent} />
-              <Text style={styles.tipText}>Keep your phone charged during travel</Text>
+              <Text style={styles.tipText}>{t('sos.tips.keepCharged')}</Text>
             </View>
             <View style={styles.tipItem}>
               <Ionicons name="checkmark-circle" size={20} color={Colors.accent} />
-              <Text style={styles.tipText}>Trust your instincts and seek help when needed</Text>
+              <Text style={styles.tipText}>{t('sos.tips.trustInstincts')}</Text>
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -344,10 +345,8 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
-  content: {
-    flex: 1,
-    padding: Layout.spacing.md,
-  },
+  scroll: { flex: 1 },
+  scrollContent: { padding: Layout.spacing.md, paddingBottom: Layout.spacing.xl * 2 },
   emergencySection: {
     alignItems: 'center',
     marginBottom: Layout.spacing.xl,

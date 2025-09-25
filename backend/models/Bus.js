@@ -23,13 +23,15 @@ const busSchema = new mongoose.Schema({
     default: 'ordinary'
   },
   currentLocation: {
-    latitude: {
-      type: Number,
-      required: true
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
     },
-    longitude: {
-      type: Number,
-      required: true
+    coordinates: {
+      type: [Number], // [lng, lat]
+      required: true,
+      index: '2dsphere'
     }
   },
   speed: {
@@ -77,18 +79,24 @@ const busSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: 0
+  },
+  city: {
+    type: String,
+    enum: ['bengaluru', 'tumkur'],
+    default: 'bengaluru',
+    index: true
   }
 }, {
   timestamps: true
 });
-
-// Index for geospatial queries
-busSchema.index({ currentLocation: '2dsphere' });
 
 // Index for efficient bus number queries
 busSchema.index({ busNumber: 1 });
 
 // Index for route-based queries
 busSchema.index({ routeId: 1, isActive: 1 });
+
+// Additional composite index for city + route
+busSchema.index({ city: 1, routeId: 1 });
 
 module.exports = mongoose.model('Bus', busSchema);

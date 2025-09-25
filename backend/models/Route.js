@@ -99,6 +99,12 @@ const routeSchema = new mongoose.Schema({
   depot: {
     type: String,
     trim: true
+  },
+  city: {
+    type: String,
+    enum: ['bengaluru', 'tumkur'],
+    default: 'bengaluru',
+    index: true
   }
 }, {
   timestamps: true
@@ -117,5 +123,8 @@ routeSchema.index({
   origin: 'text', 
   destination: 'text' 
 });
+
+// Composite index for city + routeNumber
+routeSchema.index({ city: 1, routeNumber: 1 });
 
 module.exports = mongoose.model('Route', routeSchema);

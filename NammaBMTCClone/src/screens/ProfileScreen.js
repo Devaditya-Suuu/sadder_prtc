@@ -11,75 +11,104 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { Layout } from '../constants/Layout';
+import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
+import * as SecureStore from 'expo-secure-store';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
+  const { user, logout } = useAuth();
+  const { t } = useTranslation();
+
+  const LANG_LABELS = { en: 'English', kn: 'ಕನ್ನಡ', hi: 'हिंदी' };
+  const setLanguage = async (code) => {
+    try {
+      await i18n.changeLanguage(code);
+      await SecureStore.setItemAsync('app_lang', code);
+    } catch (e) {
+      console.warn('Language change failed', e);
+    }
+  };
+  const handleLanguagePress = () => {
+    Alert.alert(
+      t('profile.languageDialog.title'),
+      t('profile.languageDialog.message'),
+      [
+        { text: 'English', onPress: () => setLanguage('en') },
+        { text: 'ಕನ್ನಡ', onPress: () => setLanguage('kn') },
+        { text: 'हिंदी', onPress: () => setLanguage('hi') },
+        { text: t('profile.languageDialog.cancel'), style: 'cancel' },
+      ]
+    );
+  };
+
   const profileOptions = [
     {
       id: 1,
-      title: 'My Trips',
-      subtitle: 'View your travel history',
+      title: t('profile.options.trips.title'),
+      subtitle: t('profile.options.trips.subtitle'),
       icon: 'time',
-      onPress: () => Alert.alert('My Trips', 'Feature coming soon!'),
+      onPress: () => Alert.alert(t('common.comingSoonTitle'), t('common.comingSoonMsg')),
     },
     {
       id: 2,
-      title: 'Saved Places',
-      subtitle: 'Home, Work, and favorite locations',
+      title: t('profile.options.saved.title'),
+      subtitle: t('profile.options.saved.subtitle'),
       icon: 'bookmark',
-      onPress: () => Alert.alert('Saved Places', 'Feature coming soon!'),
+      onPress: () => Alert.alert(t('common.comingSoonTitle'), t('common.comingSoonMsg')),
     },
     {
       id: 3,
-      title: 'Payment Methods',
-      subtitle: 'Manage your payment options',
+      title: t('profile.options.payment.title'),
+      subtitle: t('profile.options.payment.subtitle'),
       icon: 'card',
-      onPress: () => Alert.alert('Payment Methods', 'Feature coming soon!'),
+      onPress: () => Alert.alert(t('common.comingSoonTitle'), t('common.comingSoonMsg')),
     },
     {
       id: 4,
-      title: 'Notifications',
-      subtitle: 'Manage your notification preferences',
+      title: t('profile.options.notifications.title'),
+      subtitle: t('profile.options.notifications.subtitle'),
       icon: 'notifications',
-      onPress: () => Alert.alert('Notifications', 'Feature coming soon!'),
+      onPress: () => Alert.alert(t('common.comingSoonTitle'), t('common.comingSoonMsg')),
     },
     {
       id: 5,
-      title: 'Language',
-      subtitle: 'English, ಕನ್ನಡ, हिंदी',
+      title: t('profile.options.language.title'),
+      subtitle: LANG_LABELS[i18n.language] || 'English',
       icon: 'language',
-      onPress: () => Alert.alert('Language', 'Feature coming soon!'),
+      onPress: handleLanguagePress,
     },
     {
       id: 6,
-      title: 'Help & Support',
-      subtitle: 'Get help and contact support',
+      title: t('profile.options.help.title'),
+      subtitle: t('profile.options.help.subtitle'),
       icon: 'help-circle',
-      onPress: () => Alert.alert('Help & Support', 'Feature coming soon!'),
+      onPress: () => Alert.alert(t('common.comingSoonTitle'), t('common.comingSoonMsg')),
     },
     {
       id: 7,
-      title: 'About',
-      subtitle: 'App version and information',
+      title: t('profile.options.about.title'),
+      subtitle: t('profile.options.about.subtitle'),
       icon: 'information-circle',
-      onPress: () => Alert.alert('About', 'Namma BMTC Clone v1.0.0\nBuilt with React Native & Expo'),
+      onPress: () => Alert.alert(t('profile.options.about.title'), t('profile.about.alertMsg')),
     },
   ];
 
   const quickStats = [
     {
-      label: 'Total Trips',
+      label: t('profile.stats.totalTrips'),
       value: '0',
       icon: 'bus',
       color: Colors.primary,
     },
     {
-      label: 'Distance Traveled',
+      label: t('profile.stats.distanceTraveled'),
       value: '0 km',
       icon: 'map',
       color: Colors.info,
     },
     {
-      label: 'Money Saved',
+      label: t('profile.stats.moneySaved'),
       value: '₹0',
       icon: 'wallet',
       color: Colors.accent,
@@ -127,16 +156,22 @@ export default function ProfileScreen() {
               <Ionicons name="camera" size={16} color={Colors.textLight} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.userName}>Guest User</Text>
-          <Text style={styles.userEmail}>Sign in to sync your data</Text>
-          <TouchableOpacity style={styles.signInButton}>
-            <Text style={styles.signInText}>Sign In / Register</Text>
-          </TouchableOpacity>
+          <Text style={styles.userName}>{user? user.name : t('profile.guest')}</Text>
+          <Text style={styles.userEmail}>{user? (user.email || user.phone) : t('profile.signinHint')}</Text>
+          {user ? (
+            <TouchableOpacity style={styles.signInButton} onPress={logout}>
+              <Text style={styles.signInText}>{t('profile.signOut')}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.signInButton} onPress={() => navigation.navigate('Auth')}>
+              <Text style={styles.signInText}>{t('profile.signIn')}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Quick Stats */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Travel Stats</Text>
+          <Text style={styles.sectionTitle}>{t('profile.travelStats')}</Text>
           <View style={styles.statsContainer}>
             {quickStats.map(renderQuickStat)}
           </View>
@@ -144,7 +179,7 @@ export default function ProfileScreen() {
 
         {/* Profile Options */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account & Settings</Text>
+          <Text style={styles.sectionTitle}>{t('profile.accountSettings')}</Text>
           <View style={styles.optionsContainer}>
             {profileOptions.map(renderProfileOption)}
           </View>
@@ -152,13 +187,13 @@ export default function ProfileScreen() {
 
         {/* Emergency Contact */}
         <View style={styles.section}>
-          <TouchableOpacity style={styles.emergencyCard} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.emergencyCard} activeOpacity={0.8} onPress={() => navigation.navigate('SOS')}>
             <View style={styles.emergencyIcon}>
               <Ionicons name="warning" size={Layout.iconSize.lg} color={Colors.error} />
             </View>
             <View style={styles.emergencyContent}>
-              <Text style={styles.emergencyTitle}>Emergency SOS</Text>
-              <Text style={styles.emergencySubtitle}>Quick access to emergency services</Text>
+              <Text style={styles.emergencyTitle}>{t('profile.emergency.title')}</Text>
+              <Text style={styles.emergencySubtitle}>{t('profile.emergency.subtitle')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={Layout.iconSize.md} color={Colors.textSecondary} />
           </TouchableOpacity>
@@ -166,9 +201,9 @@ export default function ProfileScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appVersion}>Version 1.0.0</Text>
+          <Text style={styles.appVersion}>{t('profile.about.version')}</Text>
           <Text style={styles.appDescription}>
-            Namma BMTC Clone - Your Smart Transit Companion
+            {t('profile.about.desc')}
           </Text>
           <View style={styles.socialLinks}>
             <TouchableOpacity style={styles.socialButton}>

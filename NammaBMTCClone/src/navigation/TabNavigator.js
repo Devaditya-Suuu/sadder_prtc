@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
+import { useTranslation } from 'react-i18next';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -12,6 +13,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
+  const { t } = useTranslation();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -58,29 +60,29 @@ export default function TabNavigator() {
         name="Home" 
         component={HomeScreen} 
         options={{
-          title: 'Namma BMTC',
-          headerTitle: 'Namma BMTC',
+          title: t('tabs.home'),
+          headerTitle: t('tabs.headerBrand'),
         }}
       />
       <Tab.Screen 
         name="Nearby" 
         component={NearbyStopsScreen} 
         options={{
-          title: 'Nearby Stops',
+          title: t('tabs.nearby'),
         }}
       />
       <Tab.Screen 
         name="Journey" 
         component={JourneyPlannerScreen} 
         options={{
-          title: 'Journey Planner',
+          title: t('tabs.journey'),
         }}
       />
       <Tab.Screen 
         name="Profile" 
         component={ProfileScreen} 
         options={{
-          title: 'Profile',
+          title: t('tabs.profile'),
         }}
       />
     </Tab.Navigator>

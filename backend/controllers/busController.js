@@ -4,7 +4,11 @@ const Route = require('../models/Route');
 // Get all active buses
 const getAllBuses = async (req, res) => {
   try {
-    const buses = await Bus.find({ isActive: true })
+    const { city } = req.query;
+    const filter = { isActive: true };
+    if (city) filter.city = city.toLowerCase();
+
+    const buses = await Bus.find(filter)
       .populate('routeId', 'routeNumber routeName origin destination')
       .select('-__v');
     
@@ -26,8 +30,11 @@ const getAllBuses = async (req, res) => {
 const getBusesByRoute = async (req, res) => {
   try {
     const { routeId } = req.params;
-    
-    const buses = await Bus.find({ routeId, isActive: true })
+    const { city } = req.query;
+    const filter = { routeId, isActive: true };
+    if (city) filter.city = city.toLowerCase();
+
+    const buses = await Bus.find(filter)
       .populate('routeId', 'routeNumber routeName origin destination')
       .select('-__v');
     
@@ -48,7 +55,7 @@ const getBusesByRoute = async (req, res) => {
 // Get buses near a location
 const getNearbyBuses = async (req, res) => {
   try {
-    const { latitude, longitude, radius = 5000 } = req.query;
+    const { latitude, longitude, radius = 5000, city } = req.query;
     
     if (!latitude || !longitude) {
       return res.status(400).json({
@@ -57,7 +64,7 @@ const getNearbyBuses = async (req, res) => {
       });
     }
 
-    const buses = await Bus.find({
+    const filter = {
       isActive: true,
       currentLocation: {
         $near: {
@@ -68,7 +75,10 @@ const getNearbyBuses = async (req, res) => {
           $maxDistance: parseInt(radius)
         }
       }
-    })
+    };
+    if (city) filter.city = city.toLowerCase();
+
+    const buses = await Bus.find(filter)
     .populate('routeId', 'routeNumber routeName origin destination')
     .select('-__v');
     

@@ -1,3 +1,7 @@
+// const ESM import removed to avoid ESM mode
+const os = require('os');
+
+// Replace ES module import with CommonJS
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -7,11 +11,6 @@ const socketIo = require('socket.io');
 require('dotenv').config();
 
 const connectDB = require('./config/database');
-
-// Import routes
-const busRoutes = require('./routes/buses');
-const busStopRoutes = require('./routes/busStops');
-const routeRoutes = require('./routes/routes');
 
 // Connect to MongoDB
 connectDB();
@@ -30,6 +29,18 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+// Inject io early
+app.use((req, res, next) => { req.io = io; next(); });
+
+// Health check endpoint (single authoritative route)
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    pid: process.pid,
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -40,19 +51,19 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Routes
+const busRoutes = require('./routes/buses');
+const busStopRoutes = require('./routes/busStops');
+const routeRoutes = require('./routes/routes');
+const driverRoutes = require('./routes/driver');
+const corridorRoutes = require('./routes/corridor');
+const authRoutes = require('./routes/auth');
+
 app.use('/api/buses', busRoutes);
 app.use('/api/bus-stops', busStopRoutes);
 app.use('/api/routes', routeRoutes);
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Namma BMTC API Server is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
+app.use('/api/driver', driverRoutes);
+app.use('/api/corridor', corridorRoutes);
+app.use('/api/auth', authRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
@@ -69,11 +80,23 @@ io.on('connection', (socket) => {
     socket.join(`route-${routeId}`);
     console.log(`Client ${socket.id} tracking route ${routeId}`);
   });
+  // Join room for corridor tracking
+  socket.on('track-corridor', (key) => {
+    socket.join(`corridor-${key}`);
+    console.log(`Client ${socket.id} tracking corridor ${key}`);
+  });
+  // Join room for trip tracking
+  socket.on('track-trip', (tripId) => {
+    socket.join(`trip-${tripId}`);
+    console.log(`Client ${socket.id} tracking trip ${tripId}`);
+  });
   
-  // Stop tracking
+  // Stop tracking additions
   socket.on('stop-tracking', (id) => {
     socket.leave(`bus-${id}`);
     socket.leave(`route-${id}`);
+    socket.leave(`corridor-${id}`);
+    socket.leave(`trip-${id}`);
     console.log(`Client ${socket.id} stopped tracking ${id}`);
   });
   
@@ -124,14 +147,23 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
+function localIPs() {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter(i => i && i.family === 'IPv4' && !i.internal)
+    .map(i => i.address);
+}
+
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`
-🚌 Namma BMTC API Server is running!
-🌐 Server: http://localhost:${PORT}
-🌐 Network: http://10.77.179.139:${PORT}
-🔗 Health Check: http://10.77.179.139:${PORT}/api/health
-📊 Environment: ${process.env.NODE_ENV || 'development'}
-  `);
+  const ips = localIPs();
+  console.log('\n🚌 Namma BMTC API Server is running!');
+  console.log(`📦 PID: ${process.pid}`);
+  console.log(`🔊 Port: ${PORT}`);
+  console.log('🌐 Access URLs:');
+  ips.forEach(ip => console.log(`   -> http://${ip}:${PORT}`));
+  console.log(`🔗 Health: http://localhost:${PORT}/api/health`);
+  if (ips[0]) console.log(`🔗 Health (LAN): http://${ips[0]}:${PORT}/api/health`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}\n`);
 });
 
 // Graceful shutdown
