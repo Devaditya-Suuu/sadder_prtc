@@ -139,41 +139,41 @@ const updateBusLocation = async (req, res) => {
   try {
     const { id } = req.params;
     const { latitude, longitude, speed, heading, nextStop, eta, occupancy } = req.body;
-    
+
+    if (latitude == null || longitude == null) {
+      return res.status(400).json({ success: false, message: 'latitude & longitude required' });
+    }
+
+    const latNum = parseFloat(latitude);
+    const lngNum = parseFloat(longitude);
+    if (Number.isNaN(latNum) || Number.isNaN(lngNum)) {
+      return res.status(400).json({ success: false, message: 'Invalid latitude/longitude' });
+    }
+
     const updateData = {
-      currentLocation: { latitude, longitude },
+      currentLocation: { type: 'Point', coordinates: [lngNum, latNum] },
       lastUpdated: new Date()
     };
-    
+
     if (speed !== undefined) updateData.speed = speed;
     if (heading !== undefined) updateData.heading = heading;
     if (nextStop) updateData.nextStop = nextStop;
     if (eta) updateData.eta = eta;
     if (occupancy) updateData.occupancy = occupancy;
-    
+
     const bus = await Bus.findByIdAndUpdate(
       id,
       updateData,
       { new: true, runValidators: true }
     ).populate('routeId', 'routeNumber routeName origin destination');
-    
+
     if (!bus) {
-      return res.status(404).json({
-        success: false,
-        message: 'Bus not found'
-      });
+      return res.status(404).json({ success: false, message: 'Bus not found' });
     }
-    
-    res.json({
-      success: true,
-      data: bus
-    });
+
+    res.json({ success: true, data: bus });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error updating bus location',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Error updating bus location', error: error.message });
   }
 };
 
