@@ -34,6 +34,9 @@ export default function LiveTrackingScreen({ navigation }) {
   const [useRealtime, setUseRealtime] = useState(false);
   const [corridorLine, setCorridorLine] = useState([]);
   const [liveVehicles, setLiveVehicles] = useState([]);
+  const [corridorStops, setCorridorStops] = useState([]);
+  const [searchVehicle, setSearchVehicle] = useState('');
+  const [vehicleDistanceInfo, setVehicleDistanceInfo] = useState(null);
   const pollRef = React.useRef(null);
   const corridorPollRef = React.useRef(null);
   const backoffRef = React.useRef(2000);
@@ -118,6 +121,11 @@ export default function LiveTrackingScreen({ navigation }) {
         if(meta.success && meta.data && meta.data.simplifiedLine && Array.isArray(meta.data.simplifiedLine.coordinates)){
           const coords = meta.data.simplifiedLine.coordinates.map(([lng,lat])=>({ latitude: lat, longitude: lng }));
           setCorridorLine(coords);
+          // fetch stops after corridor meta
+          try {
+            const stopsRes = await ApiService.getCorridorStops('bengaluru-tumkur');
+            if(stopsRes.success){ setCorridorStops(stopsRes.data); }
+          } catch(e){ console.log('corridor stops error', e.message); }
         }
       } catch(e){ console.log('corridor meta error', e.message); }
     };
@@ -272,6 +280,16 @@ export default function LiveTrackingScreen({ navigation }) {
               </View>
             </Marker>
           ))}
+
+          {/* Corridor stop markers */}
+          {corridorStops.map(stop => (
+            <Marker key={stop._id || stop.stopId}
+              coordinate={{ latitude: stop.location.latitude, longitude: stop.location.longitude }}
+              title={stop.name}
+              description={`Seq ${stop.sequence} • ${stop.distanceAlongCorridor}m`}
+              pinColor={Colors.warning}
+            />
+          ))}
         </MapView>
 
         {/* Bus info overlay */}
@@ -323,6 +341,41 @@ export default function LiveTrackingScreen({ navigation }) {
           </View>
         )}
       </View>
+
+      {/* Bottom controls */}
+      <View style={styles.filterBar}>
+        <Ionicons name="search" size={18} color={Colors.textSecondary} style={{marginHorizontal:4}} />
+        <TextInput
+          placeholder={t('live.searchVehicle') || 'Search vehicle number'}
+          placeholderTextColor={Colors.textSecondary}
+          style={styles.filterInput}
+          value={searchVehicle}
+          onChangeText={setSearchVehicle}
+          onSubmitEditing={async ()=>{
+            setVehicleDistanceInfo(null);
+            if(!searchVehicle.trim()) return;
+            try {
+              const res = await ApiService.getVehicleNextStopDistance('bengaluru-tumkur', searchVehicle.trim());
+              if(res.success){ setVehicleDistanceInfo(res.data); }
+              else Alert.alert('Not found', 'Vehicle or next stop not found');
+            } catch(e){ Alert.alert('Error', e.message); }
+          }}
+          returnKeyType="search"
+        />
+        {searchVehicle.length>0 && (
+          <TouchableOpacity onPress={()=>{ setSearchVehicle(''); setVehicleDistanceInfo(null); }} style={styles.clearBtn}>
+            <Ionicons name="close" size={16} color={Colors.textLight} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {vehicleDistanceInfo && (
+        <View style={[styles.busInfoOverlay,{top: undefined, bottom: 120}]}> 
+          <Text style={styles.busRoute}>Vehicle: {vehicleDistanceInfo.vehicleNumber}</Text>
+          <Text style={styles.nextStopText}>Next Stop: {vehicleDistanceInfo.nextStop?.name || '—'}</Text>
+          <Text style={styles.nextStopText}>Distance: {vehicleDistanceInfo.distanceMeters} m</Text>
+        </View>
+      )}
 
       {/* Bottom controls */}
       <View style={styles.bottomControls}>

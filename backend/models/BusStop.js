@@ -22,6 +22,10 @@ const busStopSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
+  // Corridor specific metadata (optional)
+  corridorKey: { type: String, index: true },
+  sequence: { type: Number, index: true },
+  distanceAlongCorridor: { type: Number }, // meters from start of corridor
   routes: [{
     routeId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -73,6 +77,9 @@ busStopSchema.index({ location: '2dsphere' });
 
 // Index for stop ID queries
 busStopSchema.index({ stopId: 1 });
+
+// Corridor composite index
+busStopSchema.index({ corridorKey: 1, sequence: 1 });
 
 // Index for route-based queries
 busStopSchema.index({ 'routes.routeId': 1 });

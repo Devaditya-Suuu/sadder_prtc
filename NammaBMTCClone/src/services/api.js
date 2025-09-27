@@ -120,6 +120,10 @@ class ApiService {
     return this.request(endpoint);
   }
   async getCorridor(key='bengaluru-tumkur') { return this.request(`/corridor/${key}`); }
+  // Corridor Stops & vehicle next stop distance
+  async generateCorridorStops(key='bengaluru-tumkur', body={}){ return this.request(`/corridor-stops/${key}/generate-stops`, { method:'POST', body: JSON.stringify(body) }); }
+  async getCorridorStops(key='bengaluru-tumkur'){ return this.request(`/corridor-stops/${key}/stops`); }
+  async getVehicleNextStopDistance(corridorKey, vehicleNumber){ return this.request(`/corridor-stops/${corridorKey}/vehicle/${vehicleNumber}/next-stop`); }
   // Current Locations (live drivers)
   async getCurrentLocations(limit=500){ return this.request(`/current-locations?limit=${limit}`); }
 }

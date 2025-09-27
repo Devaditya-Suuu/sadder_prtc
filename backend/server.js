@@ -73,12 +73,14 @@ const driverRoutes = require('./routes/driver');
 const corridorRoutes = require('./routes/corridor');
 const authRoutes = require('./routes/auth');
 const CurrentLocation = require('./models/CurrentLocation');
+const corridorStopsRoutes = require('./routes/corridorStops');
 
 app.use('/api/buses', busRoutes);
 app.use('/api/bus-stops', busStopRoutes);
 app.use('/api/routes', routeRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/corridor', corridorRoutes);
+app.use('/api/corridor-stops', corridorStopsRoutes);
 app.use('/api/auth', authRoutes);
 
 // Latest current locations (one per vehicle) replacing old live-locations
