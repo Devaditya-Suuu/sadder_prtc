@@ -69,10 +69,12 @@ app.use('/api/auth', authRoutes);
 // Latest driver raw locations (external driver app feed)
 app.get('/api/driver/live-locations', async (req, res) => {
   try {
-    const { sinceMinutes = 10 } = req.query;
+    const { sinceMinutes = 10, vehicleNumber } = req.query;
     const since = new Date(Date.now() - parseInt(sinceMinutes) * 60 * 1000);
+    const match = { timestamp: { $gte: since } };
+    if (vehicleNumber) match.vehicleNumber = vehicleNumber.trim();
     const docs = await CurrentLocation.aggregate([
-      { $match: { timestamp: { $gte: since } } },
+      { $match: match },
       { $sort: { timestamp: -1 } },
       { $group: { _id: '$vehicleNumber',
           vehicleNumber: { $first: '$vehicleNumber' },

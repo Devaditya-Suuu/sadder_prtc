@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline } from 'react-native-maps';
@@ -33,6 +34,7 @@ export default function LiveTrackingScreen({ navigation }) {
   const [useRealtime, setUseRealtime] = useState(false);
   const [corridorLine, setCorridorLine] = useState([]);
   const [driverLocations, setDriverLocations] = useState([]);
+  const [vehicleFilter, setVehicleFilter] = useState('');
 
   const fetchNearbyBuses = async (userLocation) => {
     try {
@@ -114,7 +116,7 @@ export default function LiveTrackingScreen({ navigation }) {
     });
 
     const pollDriver = async () => {
-      try { const res = await ApiService.getDriverLiveLocations(15); if(res.success) setDriverLocations(res.data); } catch(e){ console.log('driver loc poll err', e.message); }
+      try { const res = await ApiService.getDriverLiveLocations(15, vehicleFilter.trim() || undefined); if(res.success) setDriverLocations(res.data); } catch(e){ console.log('driver loc poll err', e.message); }
     };
     pollDriver();
     const driverInterval = setInterval(pollDriver, 7000);
@@ -202,6 +204,18 @@ export default function LiveTrackingScreen({ navigation }) {
       </View>
 
       <View style={styles.mapContainer}>
+        <View style={styles.filterBar}>
+          <TextInput
+            placeholder="Filter vehicle (e.g. KA-01)"
+            value={vehicleFilter}
+            onChangeText={setVehicleFilter}
+            style={styles.filterInput}
+            placeholderTextColor={Colors.textSecondary}
+          />
+          <TouchableOpacity style={styles.clearBtn} onPress={()=> setVehicleFilter('')}>
+            <Ionicons name="close" size={18} color={Colors.textLight} />
+          </TouchableOpacity>
+        </View>
         <MapView
           style={styles.map}
           region={region}
@@ -386,6 +400,32 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     position: 'relative',
+  },
+  filterBar: {
+    position:'absolute',
+    top:10,
+    left:10,
+    right:10,
+    zIndex:10,
+    flexDirection:'row',
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingHorizontal:8,
+    alignItems:'center',
+    shadowColor:'#000', shadowOpacity:0.15, shadowRadius:4, shadowOffset:{width:0,height:2},
+    elevation:4
+  },
+  filterInput: {
+    flex:1,
+    height:40,
+    color: Colors.text,
+    fontSize: 14,
+  },
+  clearBtn: {
+    backgroundColor: Colors.primary,
+    padding:6,
+    borderRadius:20,
+    marginLeft:6
   },
   map: {
     flex: 1,
