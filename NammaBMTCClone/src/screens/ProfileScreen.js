@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
@@ -20,7 +22,15 @@ export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
 
-  const LANG_LABELS = { en: 'English', kn: 'ಕನ್ನಡ', hi: 'हिंदी' };
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
+
+  const LANG_LABELS = { en: 'English', kn: 'ಕನ್ನಡ', hi: 'हिंदी', pa: 'ਪੰਜਾਬੀ' };
+  const LANGUAGE_OPTIONS = [
+    { code: 'en', label: 'English' },
+    { code: 'kn', label: 'ಕನ್ನಡ' },
+    { code: 'hi', label: 'हिंदी' },
+    { code: 'pa', label: 'ਪੰਜਾਬੀ' },
+  ];
   const setLanguage = async (code) => {
     try {
       await i18n.changeLanguage(code);
@@ -30,16 +40,8 @@ export default function ProfileScreen({ navigation }) {
     }
   };
   const handleLanguagePress = () => {
-    Alert.alert(
-      t('profile.languageDialog.title'),
-      t('profile.languageDialog.message'),
-      [
-        { text: 'English', onPress: () => setLanguage('en') },
-        { text: 'ಕನ್ನಡ', onPress: () => setLanguage('kn') },
-        { text: 'हिंदी', onPress: () => setLanguage('hi') },
-        { text: t('profile.languageDialog.cancel'), style: 'cancel' },
-      ]
-    );
+    // Replaced Alert (Android limit 3 buttons) with modal so all languages appear
+    setLanguageModalVisible(true);
   };
 
   const profileOptions = [
@@ -218,6 +220,47 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
       </ScrollView>
+      {/* Language Selection Modal */}
+      <Modal
+        visible={languageModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLanguageModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t('profile.languageDialog.title')}</Text>
+            <Text style={styles.modalSubtitle}>{t('profile.languageDialog.message')}</Text>
+            <View style={styles.langList}>
+              {LANGUAGE_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.code}
+                  style={({ pressed }) => [
+                    styles.langButton,
+                    pressed && { backgroundColor: Colors.background },
+                    i18n.language === opt.code && styles.langButtonActive,
+                  ]}
+                  onPress={async () => {
+                    await setLanguage(opt.code);
+                    setLanguageModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.langButtonText}>{opt.label}</Text>
+                  {i18n.language === opt.code && (
+                    <Ionicons name="checkmark" size={18} color={Colors.primary} />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setLanguageModalVisible(false)}
+            >
+              <Text style={styles.modalCloseText}>{t('profile.languageDialog.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -444,5 +487,66 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 3,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: Layout.fontSize.lg,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: Layout.fontSize.sm,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+  },
+  langList: {
+    marginBottom: 8,
+  },
+  langButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 8,
+  },
+  langButtonActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.background,
+  },
+  langButtonText: {
+    fontSize: Layout.fontSize.md,
+    color: Colors.text,
+    fontWeight: '500',
+  },
+  modalClose: {
+    marginTop: 4,
+    alignSelf: 'flex-end',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+  },
+  modalCloseText: {
+    color: Colors.textLight,
+    fontSize: Layout.fontSize.sm,
+    fontWeight: '600',
   },
 });

@@ -12,7 +12,7 @@
     },
     "about": {
       "version": "Version 1.0.0",
-      "desc": "Namma BMTC Clone - Your Smart Transit Companion",
+      "desc": "Sadda PRTC - Your Smart Transit Companion",
       "alertMsg": "Namma PRTC app v1.0.0\nBuilt with React Native & Expo"
     },
     "options": {
@@ -63,7 +63,7 @@
   },
   "home": {
     "welcome": "Welcome to",
-    "brand": "Namma PRTC",
+    "brand": "SADDA PRTC",
     "tagline": "Your Smart Transit Companion",
     "sosButton": "Emergency SOS",
     "quickActionsTitle": "Quick Actions",
@@ -106,7 +106,7 @@
     "travelTips": "Travel Tips",
     "tip": {
       "peakHours": "Peak hours: 8-10 AM, 6-8 PM",
-      "card": "Use BMTC card for cashless travel",
+      "card": "Use PRTC card for cashless travel",
       "safeBelongings": "Keep your belongings safe"
     },
     "noRoutesTitle": "No Routes Found",
@@ -174,19 +174,19 @@
       "fire": "Fire Department",
       "ambulance": "Ambulance",
       "women": "Women Helpline",
-      "bmtc": "BMTC Control Room"
+      "bmtc": "PRTC Control Room"
     },
     "contactsDesc": {
       "police": "For immediate police assistance",
       "fire": "Fire emergency services",
       "ambulance": "Medical emergency services",
       "women": "24/7 women safety helpline",
-      "bmtc": "BMTC emergency assistance"
+      "bmtc": "PRTC emergency assistance"
     }
   },
   "tabs": {
-    "home": "Namma BMTC",
-    "headerBrand": "Namma BMTC",
+    "home": "SADDA PRTC",
+    "headerBrand": "SADDA PRTC",
     "nearby": "Nearby Stops",
     "journey": "Journey Planner",
     "profile": "Profile"

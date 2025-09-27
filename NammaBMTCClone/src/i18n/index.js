@@ -6,9 +6,10 @@ import * as SecureStore from 'expo-secure-store';
 import en from './locales/en.json';
 import kn from './locales/kn.json';
 import hi from './locales/hi.json';
+import pa from './locales/pa.json';
 
-const resources = { en: { translation: en }, kn: { translation: kn }, hi: { translation: hi } };
-const supported = ['en','kn','hi'];
+const resources = { en: { translation: en }, kn: { translation: kn }, hi: { translation: hi }, pa: { translation: pa } };
+const supported = ['en','kn','hi','pa'];
 
 // Initialize with device or persisted language
 let initialLng = (Localization?.getLocales?.()[0]?.languageCode || 'en').toLowerCase();
