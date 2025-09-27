@@ -57,6 +57,7 @@ const routeRoutes = require('./routes/routes');
 const driverRoutes = require('./routes/driver');
 const corridorRoutes = require('./routes/corridor');
 const authRoutes = require('./routes/auth');
+const CurrentLocation = require('./models/CurrentLocation');
 
 app.use('/api/buses', busRoutes);
 app.use('/api/bus-stops', busStopRoutes);
@@ -64,6 +65,32 @@ app.use('/api/routes', routeRoutes);
 app.use('/api/driver', driverRoutes);
 app.use('/api/corridor', corridorRoutes);
 app.use('/api/auth', authRoutes);
+
+// Latest driver raw locations (external driver app feed)
+app.get('/api/driver/live-locations', async (req, res) => {
+  try {
+    const { sinceMinutes = 10 } = req.query;
+    const since = new Date(Date.now() - parseInt(sinceMinutes) * 60 * 1000);
+    const docs = await CurrentLocation.aggregate([
+      { $match: { timestamp: { $gte: since } } },
+      { $sort: { timestamp: -1 } },
+      { $group: { _id: '$vehicleNumber',
+          vehicleNumber: { $first: '$vehicleNumber' },
+          driverName: { $first: '$driverName' },
+          latitude: { $first: '$latitude' },
+          longitude: { $first: '$longitude' },
+          timestamp: { $first: '$timestamp' }
+        }
+      },
+      { $project: { _id: 0, vehicleNumber:1, driverName:1, latitude:1, longitude:1, timestamp:1 } },
+      { $sort: { vehicleNumber: 1 } }
+    ]);
+    res.json({ success: true, count: docs.length, data: docs });
+  } catch (e) {
+    console.error('live-locations error', e);
+    res.status(500).json({ success:false, message: 'Failed to fetch live locations', error: e.message });
+  }
+});
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {

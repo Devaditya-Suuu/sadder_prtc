@@ -32,6 +32,7 @@ export default function LiveTrackingScreen({ navigation }) {
   const [corridorTrips, setCorridorTrips] = useState([]);
   const [useRealtime, setUseRealtime] = useState(false);
   const [corridorLine, setCorridorLine] = useState([]);
+  const [driverLocations, setDriverLocations] = useState([]);
 
   const fetchNearbyBuses = async (userLocation) => {
     try {
@@ -112,6 +113,12 @@ export default function LiveTrackingScreen({ navigation }) {
       });
     });
 
+    const pollDriver = async () => {
+      try { const res = await ApiService.getDriverLiveLocations(15); if(res.success) setDriverLocations(res.data); } catch(e){ console.log('driver loc poll err', e.message); }
+    };
+    pollDriver();
+    const driverInterval = setInterval(pollDriver, 7000);
+
     const loadCorridor = async () => {
       try { const meta = await ApiService.getCorridor(); if(meta.success){
         const coords = meta.data.simplifiedLine.coordinates.map(([lng,lat])=>({ latitude: lat, longitude: lng }));
@@ -120,7 +127,7 @@ export default function LiveTrackingScreen({ navigation }) {
     };
     loadCorridor();
 
-    return () => { clearInterval(pollInterval); SocketService.stopTrackingCorridor('bengaluru-tumkur'); };
+    return () => { clearInterval(pollInterval); clearInterval(driverInterval); SocketService.stopTrackingCorridor('bengaluru-tumkur'); };
   }, []);
 
   const getCurrentLocation = async () => {
@@ -251,6 +258,19 @@ export default function LiveTrackingScreen({ navigation }) {
             >
               <View style={[styles.busMarker, { backgroundColor: Colors.secondary }]}> 
                 <Ionicons name="bus" size={20} color={Colors.textLight} />
+              </View>
+            </Marker>
+          ))}
+
+          {/* External driver app live locations */}
+          {driverLocations.map(d => (
+            <Marker key={`drv-${d.vehicleNumber}`}
+              coordinate={{ latitude: d.latitude, longitude: d.longitude }}
+              title={d.vehicleNumber}
+              description={`Updated ${(new Date(d.timestamp)).toLocaleTimeString()}`}
+            >
+              <View style={[styles.busMarker, { backgroundColor: Colors.info }]}> 
+                <Ionicons name="navigate" size={18} color={Colors.textLight} />
               </View>
             </Marker>
           ))}

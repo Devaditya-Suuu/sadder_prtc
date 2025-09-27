@@ -120,6 +120,7 @@ class ApiService {
     return this.request(endpoint);
   }
   async getCorridor(key='bengaluru-tumkur') { return this.request(`/corridor/${key}`); }
+  async getDriverLiveLocations(sinceMinutes=10){ return this.request(`/driver/live-locations?sinceMinutes=${sinceMinutes}`); }
 }
 
 export default new ApiService();
