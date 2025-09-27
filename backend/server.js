@@ -42,13 +42,28 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Rate limiting
+// Rate limiting (enhanced)
+const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || (5 * 60 * 1000)); // default 5 minutes
+const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '2000'); // enough for 2s polling + extras
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: 'Too many requests from this IP, please try again later.'
 });
-app.use('/api/', limiter);
+
+// High-frequency endpoints we skip (prefix match)
+const RATE_LIMIT_SKIP_PREFIXES = [
+  '/api/current-locations',
+  '/api/corridor', // corridor metadata can refresh often
+];
+
+app.use((req, res, next) => {
+  if (process.env.RATE_LIMIT_DISABLE === 'true' || (process.env.NODE_ENV !== 'production')) return next();
+  if (RATE_LIMIT_SKIP_PREFIXES.some(p => req.path.startsWith(p))) return next();
+  return limiter(req, res, next);
+});
 
 // Routes
 const busRoutes = require('./routes/buses');
@@ -66,31 +81,21 @@ app.use('/api/driver', driverRoutes);
 app.use('/api/corridor', corridorRoutes);
 app.use('/api/auth', authRoutes);
 
-// Latest driver raw locations (external driver app feed)
-app.get('/api/driver/live-locations', async (req, res) => {
+// Latest current locations (one per vehicle) replacing old live-locations
+app.get('/api/current-locations', async (req, res) => {
   try {
-    const { sinceMinutes = 10, vehicleNumber } = req.query;
-    const since = new Date(Date.now() - parseInt(sinceMinutes) * 60 * 1000);
-    const match = { timestamp: { $gte: since } };
-    if (vehicleNumber) match.vehicleNumber = vehicleNumber.trim();
-    const docs = await CurrentLocation.aggregate([
-      { $match: match },
+    const limit = parseInt(req.query.limit || '500');
+    const pipeline = [
       { $sort: { timestamp: -1 } },
-      { $group: { _id: '$vehicleNumber',
-          vehicleNumber: { $first: '$vehicleNumber' },
-          driverName: { $first: '$driverName' },
-          latitude: { $first: '$latitude' },
-          longitude: { $first: '$longitude' },
-          timestamp: { $first: '$timestamp' }
-        }
-      },
-      { $project: { _id: 0, vehicleNumber:1, driverName:1, latitude:1, longitude:1, timestamp:1 } },
-      { $sort: { vehicleNumber: 1 } }
-    ]);
+      { $group: { _id: '$vehicleNumber', doc: { $first: '$$ROOT' } } },
+      { $replaceRoot: { newRoot: '$doc' } },
+      { $limit: limit }
+    ];
+    const docs = await CurrentLocation.aggregate(pipeline).exec();
     res.json({ success: true, count: docs.length, data: docs });
   } catch (e) {
-    console.error('live-locations error', e);
-    res.status(500).json({ success:false, message: 'Failed to fetch live locations', error: e.message });
+    console.error('current-locations error', e);
+    res.status(500).json({ success: false, message: 'Failed to fetch current locations' });
   }
 });
 

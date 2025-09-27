@@ -33,8 +33,10 @@ export default function LiveTrackingScreen({ navigation }) {
   const [corridorTrips, setCorridorTrips] = useState([]);
   const [useRealtime, setUseRealtime] = useState(false);
   const [corridorLine, setCorridorLine] = useState([]);
-  const [driverLocations, setDriverLocations] = useState([]);
-  const [vehicleFilter, setVehicleFilter] = useState('');
+  const [liveVehicles, setLiveVehicles] = useState([]);
+  const pollRef = React.useRef(null);
+  const corridorPollRef = React.useRef(null);
+  const backoffRef = React.useRef(2000);
 
   const fetchNearbyBuses = async (userLocation) => {
     try {
@@ -81,55 +83,49 @@ export default function LiveTrackingScreen({ navigation }) {
 
   useEffect(() => {
     getCurrentLocation();
-    // Corridor polling fallback
-    const poll = async () => {
+
+    const fetchLive = async () => {
       try {
-        const res = await ApiService.getActiveCorridorTrips();
-        const list = res.data || res.trips || [];
-        setCorridorTrips(list);
-      } catch(e){ console.log('corridor poll error', e.message); }
-    };
-    poll();
-    const pollInterval = setInterval(poll, 8000);
-
-    // Attempt realtime
-    const socket = SocketService.connect();
-    SocketService.trackCorridor('bengaluru-tumkur', (evt)=>{
-      setUseRealtime(true);
-      setCorridorTrips(prev => {
-        if(evt.type==='location'){
-          const idx = prev.findIndex(t=>t.tripId===evt.tripId);
-            if(idx>-1){
-              const copy=[...prev];
-              copy[idx] = { ...copy[idx], lastLocation: evt.location, progress: evt.progress, eta: evt.eta, updatedAt: evt.updatedAt };
-              return copy;
-            } else {
-              return prev.concat({ tripId: evt.tripId, lastLocation: evt.location, progress: evt.progress, eta: evt.eta, direction: evt.direction, busNumber: evt.busNumber });
-            }
-        } else if(evt.type==='trip-start'){
-          return prev.concat({ tripId: evt.tripId });
-        } else if(evt.type==='trip-end'){
-          return prev.filter(t=>t.tripId!==evt.tripId);
+        const res = await ApiService.getCurrentLocations(400);
+        if(res.success && Array.isArray(res.data)){
+          setLiveVehicles(res.data.map(d=>({
+            id: d._id || d.vehicleNumber,
+            vehicleNumber: d.vehicleNumber,
+            driverName: d.driverName,
+            latitude: d.latitude,
+            longitude: d.longitude,
+            timestamp: d.timestamp,
+            busNumber: d.busNumber
+          })));
+          backoffRef.current = 2000; // reset on success
         }
-        return prev;
-      });
-    });
-
-    const pollDriver = async () => {
-      try { const res = await ApiService.getDriverLiveLocations(15, vehicleFilter.trim() || undefined); if(res.success) setDriverLocations(res.data); } catch(e){ console.log('driver loc poll err', e.message); }
+      } catch(e){
+        if(String(e.message).includes('429')){
+          backoffRef.current = Math.min(backoffRef.current * 2, 30000); // exponential up to 30s
+          console.log('429 received, increasing polling interval to', backoffRef.current, 'ms');
+        }
+      } finally {
+        if(pollRef.current){
+          clearTimeout(pollRef.current);
+        }
+        pollRef.current = setTimeout(fetchLive, backoffRef.current);
+      }
     };
-    pollDriver();
-    const driverInterval = setInterval(pollDriver, 7000);
 
     const loadCorridor = async () => {
-      try { const meta = await ApiService.getCorridor(); if(meta.success){
-        const coords = meta.data.simplifiedLine.coordinates.map(([lng,lat])=>({ latitude: lat, longitude: lng }));
-        setCorridorLine(coords);
-      }} catch(e){ console.log('corridor meta error', e.message); }
+      try {
+        const meta = await ApiService.getCorridor('bengaluru-tumkur');
+        if(meta.success && meta.data && meta.data.simplifiedLine && Array.isArray(meta.data.simplifiedLine.coordinates)){
+          const coords = meta.data.simplifiedLine.coordinates.map(([lng,lat])=>({ latitude: lat, longitude: lng }));
+          setCorridorLine(coords);
+        }
+      } catch(e){ console.log('corridor meta error', e.message); }
     };
+
+    fetchLive();
     loadCorridor();
 
-    return () => { clearInterval(pollInterval); clearInterval(driverInterval); SocketService.stopTrackingCorridor('bengaluru-tumkur'); };
+    return () => { if(pollRef.current) clearTimeout(pollRef.current); if(corridorPollRef.current) clearInterval(corridorPollRef.current); };
   }, []);
 
   const getCurrentLocation = async () => {
@@ -204,18 +200,6 @@ export default function LiveTrackingScreen({ navigation }) {
       </View>
 
       <View style={styles.mapContainer}>
-        <View style={styles.filterBar}>
-          <TextInput
-            placeholder="Filter vehicle (e.g. KA-01)"
-            value={vehicleFilter}
-            onChangeText={setVehicleFilter}
-            style={styles.filterInput}
-            placeholderTextColor={Colors.textSecondary}
-          />
-          <TouchableOpacity style={styles.clearBtn} onPress={()=> setVehicleFilter('')}>
-            <Ionicons name="close" size={18} color={Colors.textLight} />
-          </TouchableOpacity>
-        </View>
         <MapView
           style={styles.map}
           region={region}
@@ -276,15 +260,15 @@ export default function LiveTrackingScreen({ navigation }) {
             </Marker>
           ))}
 
-          {/* External driver app live locations */}
-          {driverLocations.map(d => (
-            <Marker key={`drv-${d.vehicleNumber}`}
-              coordinate={{ latitude: d.latitude, longitude: d.longitude }}
-              title={d.vehicleNumber}
-              description={`Updated ${(new Date(d.timestamp)).toLocaleTimeString()}`}
+          {/* Live current locations markers */}
+          {liveVehicles.map(v => (
+            <Marker key={`live-${v.id}`}
+              coordinate={{ latitude: v.latitude, longitude: v.longitude }}
+              title={v.vehicleNumber}
+              description={`${v.driverName || ''} ${new Date(v.timestamp).toLocaleTimeString()}`.trim()}
             >
-              <View style={[styles.busMarker, { backgroundColor: Colors.info }]}> 
-                <Ionicons name="navigate" size={18} color={Colors.textLight} />
+              <View style={[styles.busMarker, { backgroundColor: Colors.secondary, transform:[{scale:0.7}] }]}> 
+                <Ionicons name="bus" size={16} color={Colors.textLight} />
               </View>
             </Marker>
           ))}
