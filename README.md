@@ -29,7 +29,7 @@ Root
 │  ├─ scripts/             # Utility scripts (e.g., generateCorridorBusStops.js)
 │  ├─ data/                # GeoJSON / seed assets
 │  └─ server.js            # App bootstrap & Socket.IO wiring
-└─ NammaBMTCClone/         # React Native (Expo) mobile app
+└─ SaddaPRTC/              # React Native (Expo) mobile app
    ├─ src/screens/         # UI Screens (LiveTracking, NearbyStops, Planner, etc.)
    ├─ src/services/        # api.js (REST client), socketService.js
    ├─ src/constants/       # Colors / Layout
@@ -106,7 +106,7 @@ API base: `http://localhost:3001/api`
 
 ### Install & Run
 ```bash
-cd NammaBMTCClone
+cd SaddaPRTC
 npm install
 # Configure API base (EXPO_PUBLIC_API_URL) if needed:
 # echo 'EXPO_PUBLIC_API_URL=http://<yourLANIP>:3001' >> .env
@@ -157,7 +157,7 @@ On mobile map you should see: user marker, corridor polyline, live buses, corrid
 | `npm start` | backend | Start API (prod) |
 | `npm run seed` | backend | Seed sample data (if configured) |
 | `node scripts/generateCorridorBusStops.js` | backend | Generate corridor stops |
-| `npm start` | NammaBMTCClone | Expo dev server |
+| `npm start` | SaddaPRTC | Expo dev server |
 
 ---
 ## 🧭 Roadmap (Potential Next)
